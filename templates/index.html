@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yearly Calendar</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background-color: #000000;
+            color: #ffffff;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .calendar-controls {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-rows: repeat(2, auto);
+            gap: 20px;
+        }
+        .calendar-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .calendar-quadrant {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(255,255,255,0.1);
+        }
+        .calendar-table {
+            width: 100%;
+            border-collapse: collapse;
+            white-space: pre;
+        }
+        .calendar-header {
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+        .week-row {
+            height: 1.5em;
+        }
+        input[type="month"] {
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        button {
+            padding: 8px 16px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .text-output {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        .copy-button {
+            background-color: #333;
+            margin-top: 10px;
+        }
+        .copy-button:hover {
+            background-color: #444;
+        }
+        pre {
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="calendar-controls">
+            <input type="month" id="start-date" value="{{ default_date }}">
+            <button onclick="generateCalendar()">Generate Calendar</button>
+        </div>
+        <div class="calendar-grid">
+            <div class="calendar-row">
+                <div class="calendar-quadrant" id="q1"></div>
+                <div class="calendar-quadrant" id="q2"></div>
+            </div>
+            <div class="calendar-row">
+                <div class="calendar-quadrant" id="q3"></div>
+                <div class="calendar-quadrant" id="q4"></div>
+            </div>
+        </div>
+        <div class="text-output">
+            <h3>Copyable Calendar Format:</h3>
+            <pre id="text-calendar"></pre>
+            <button onclick="copyTextCalendar()" class="copy-button">Copy to Clipboard</button>
+        </div>
+    </div>
+
+    <script>
+        function formatCalendarQuadrant(months) {
+            let result = 'Wk | Mo Tu We Th Fr Sa Su   | Wk | Mo Tu We Th Fr Sa Su\n';
+            result += '––––––––––––––––––––––––––– | –––––––––––––––––––––––––––\n';
+
+            const [leftMonth, rightMonth] = months;
+            const maxWeeks = Math.max(
+                leftMonth.weeks.length,
+                rightMonth.weeks.length
+            );
+
+            for (let i = 0; i < maxWeeks; i++) {
+                let leftWeek = leftMonth.weeks[i] || { week_num: '', dates: Array(7).fill('') };
+                let rightWeek = rightMonth.weeks[i] || { week_num: '', dates: Array(7).fill('') };
+
+                let weekNumLeft = String(leftWeek.week_num).padStart(2);
+                let weekNumRight = String(rightWeek.week_num).padStart(2);
+
+                let leftDates = leftWeek.dates.map(d => String(d).padStart(2)).join(' ');
+                let rightDates = rightWeek.dates.map(d => String(d).padStart(2)).join(' ');
+
+                // Always add a space for month letter position, even if there isn't a letter
+                let monthLetter = ' ';
+                let rightMonthLetter = ' ';
+                
+                // Only add actual month letters for the first three rows
+                if (i < 3) {
+                    monthLetter = i < leftMonth.month_letters.length ? leftMonth.month_letters[i] : ' ';
+                    rightMonthLetter = i < rightMonth.month_letters.length ? rightMonth.month_letters[i] : ' ';
+                }
+
+                result += `${weekNumLeft} | ${leftDates} ${monthLetter} | ${weekNumRight} | ${rightDates} ${rightMonthLetter}\n`;
+            }
+
+            return result;
+        }
+
+        function generateCalendar() {
+            const startDate = document.getElementById('start-date').value;
+            fetch(`/get_calendar?start_date=${startDate}`)
+                .then(response => response.json())
+                .then(data => {
+                    // First quadrant (months 0-1)
+                    const q1 = formatCalendarQuadrant([data[0], data[1]]);
+                    document.getElementById('q1').innerHTML = `<pre>${q1}</pre>`;
+                    
+                    // Second quadrant (months 2-3)
+                    const q2 = formatCalendarQuadrant([data[2], data[3]]);
+                    document.getElementById('q2').innerHTML = `<pre>${q2}</pre>`;
+                    
+                    // Third quadrant (months 4-5)
+                    const q3 = formatCalendarQuadrant([data[4], data[5]]);
+                    document.getElementById('q3').innerHTML = `<pre>${q3}</pre>`;
+                    
+                    // Fourth quadrant (months 6-7)
+                    const q4 = formatCalendarQuadrant([data[6], data[7]]);
+                    document.getElementById('q4').innerHTML = `<pre>${q4}</pre>`;
+
+                    // Generate text format
+                    const textCalendar = `${q1}\n${q2}\n${q3}\n${q4}`;
+                    document.getElementById('text-calendar').textContent = textCalendar;
+                });
+        }
+
+        function copyTextCalendar() {
+            const textCalendar = document.getElementById('text-calendar').textContent;
+            navigator.clipboard.writeText(textCalendar).then(() => {
+                alert('Calendar copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy calendar:', err);
+            });
+        }
+
+        // Generate calendar on page load
+        generateCalendar();
+    </script>
+</body>
+</html>
